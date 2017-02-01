@@ -22,11 +22,11 @@ public class FluxFlixServiceApplicationTests {
 	private FluxFlixService service;
 
 	@Test
-	public void streamStreamsFor() throws Exception {
+	public void getMovieEvents() throws Exception {
 		Movie movie = this.movieRepository.findAll().blockFirst();
-		StepVerifier.withVirtualTime(() -> service.streamStreamsFor(movie).take(10).collect(Collectors.toList()))
+		StepVerifier.withVirtualTime(() -> service.getMovieEvents(movie).take(10).collect(Collectors.toList()))
 				.thenAwait(Duration.ofMinutes(10))
-				.consumeNextWith(movieStreams -> Assert.assertTrue(movieStreams.size() == 10))
+				.consumeNextWith(movieEvents -> Assert.assertTrue(movieEvents.size() == 10))
 				.verifyComplete();
 	}
 }

@@ -74,10 +74,10 @@ class MovieRestController {
         return this.movieRepository.findAll();
     }
 
-    @GetMapping(value = "/{id}/streams", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
-    public Flux<MovieStream> streamsFor(@PathVariable String id) {
+    @GetMapping(value = "/{id}/events", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    public Flux<MovieEvent> events(@PathVariable String id) {
         return this.movieRepository.findOne(id)
-                .flatMap(this.fluxFlixService::streamStreamsFor);
+                .flatMap(this.fluxFlixService::getMovieEvents);
     }
 
     @GetMapping("/{id}")
@@ -95,9 +95,9 @@ class FluxFlixService {
         this.movieRepository = movieRepository;
     }
 
-    public Flux<MovieStream> streamStreamsFor(Movie movie) {
-        Flux<MovieStream> streamFlux = Flux.fromStream(
-            Stream.generate(() -> new MovieStream(
+    public Flux<MovieEvent> getMovieEvents(Movie movie) {
+        Flux<MovieEvent> streamFlux = Flux.fromStream(
+            Stream.generate(() -> new MovieEvent(
                 Math.random() > .5 ? "starbuxman" : "mkheck", movie, new Date())));
         Flux<Long> durationFlux = Flux.interval(Duration.ofSeconds(1));
         return Flux.zip(streamFlux, durationFlux).map(Tuple2::getT1);
@@ -136,7 +136,7 @@ class ReactiveMongoConfiguration extends AbstractReactiveMongoConfiguration {
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-class MovieStream {
+class MovieEvent {
     private String user;
     private Movie movie;
     private Date when;

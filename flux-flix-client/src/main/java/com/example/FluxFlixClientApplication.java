@@ -29,9 +29,9 @@ public class FluxFlixClientApplication {
                         .flatMap(m -> m.bodyToFlux(Movie.class))
                         .filter(m -> m.getTitle().equalsIgnoreCase("flux gordon"))
                         .subscribe(m -> client.exchange(ClientRequest.method(HttpMethod.GET,
-                                new UriTemplate("http://localhost:8080/movies/{id}/streams")
+                                new UriTemplate("http://localhost:8080/movies/{id}/events")
                                         .expand(m.getId())).build())
-                                .subscribe(cr -> cr.bodyToFlux(MovieStream.class)
+                                .subscribe(cr -> cr.bodyToFlux(MovieEvent.class)
                                         .subscribe(System.out::println)));
     }
 
@@ -41,7 +41,7 @@ public class FluxFlixClientApplication {
 }
 
 @Data
-class MovieStream {
+class MovieEvent {
     private Date when;
     private Movie movie;
     private String user;
