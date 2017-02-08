@@ -7,15 +7,13 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.Bean;
 import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.util.UriTemplate;
-
-import java.net.URI;
 import java.util.Date;
 
 @SpringBootApplication
 public class FluxFlixClientApplication {
     @Bean
     WebClient client() {
-        return WebClient.create("/");
+        return WebClient.create();
     }
 
     @Bean
