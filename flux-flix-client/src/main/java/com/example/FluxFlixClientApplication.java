@@ -18,16 +18,19 @@ public class FluxFlixClientApplication {
 
     @Bean
     CommandLineRunner demo(WebClient client) {
-        return args->client.get()
+        return strings -> client
+                .get()
                 .uri("http://localhost:8080/movies")
                 .exchange()
-                .flatMap(m->m.bodyToFlux(Movie.class))
-                .filter(m->m.getTitle().equalsIgnoreCase("flux gordon"))
-                .subscribe(m->client.get()
-                        .uri(new UriTemplate("http://localhost:8080/movies/{id}/events").expand(m.getId()))
+                .flatMap(clientResponse -> clientResponse.bodyToFlux(Movie.class))
+                .filter(movie -> movie.getTitle().equalsIgnoreCase("flux gordon"))
+                .subscribe(movie -> client
+                        .get()
+                        .uri(new UriTemplate("http://localhost:8080/movies/{id}/events")
+                                .expand(movie.getId()))
                         .exchange()
-                        .subscribe(cr->cr.bodyToFlux(MovieEvent.class)
-                                .subscribe(System.out::println)));
+                        .flatMap(clientResponse -> clientResponse.bodyToFlux(MovieEvent.class))
+                        .subscribe(System.out::println));
     }
 
     public static void main(String[] args) {
