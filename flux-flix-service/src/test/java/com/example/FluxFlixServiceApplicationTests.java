@@ -12,21 +12,25 @@ import java.time.Duration;
 import java.util.stream.Collectors;
 
 @RunWith(SpringRunner.class)
-@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.NONE)
+@SpringBootTest
 public class FluxFlixServiceApplicationTests {
 
 	@Autowired
 	private MovieRepository movieRepository;
 
 	@Autowired
-	private FluxFlixService service;
+	private FluxFlixService fluxFlixService;
 
 	@Test
-	public void getMovieEvents() throws Exception {
+	public void testStreamingStreamsFluxItAll() throws Throwable {
+
 		Movie movie = this.movieRepository.findAll().blockFirst();
-		StepVerifier.withVirtualTime(() -> service.getMovieEvents(movie).take(10).collect(Collectors.toList()))
+
+		StepVerifier.withVirtualTime(() -> fluxFlixService.streamStreams(movie).take(10).collect(Collectors.toList()))
 				.thenAwait(Duration.ofMinutes(10))
-				.consumeNextWith(movieEvents -> Assert.assertTrue(movieEvents.size() == 10))
+				.consumeNextWith(batchOfEvents -> Assert.assertEquals(batchOfEvents.size(), 10))
 				.verifyComplete();
+
 	}
+
 }
