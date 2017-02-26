@@ -4,11 +4,11 @@
 	<modelVersion>4.0.0</modelVersion>
 
 	<groupId>com.example</groupId>
-	<artifactId>flux-flix-client</artifactId>
+	<artifactId>flix-flux-service</artifactId>
 	<version>0.0.1-SNAPSHOT</version>
 	<packaging>jar</packaging>
 
-	<name>flux-flix-client</name>
+	<name>flix-flux-service</name>
 	<description>Demo project for Spring Boot</description>
 
 	<parent>
@@ -26,12 +26,12 @@
 
 	<dependencies>
 		<dependency>
-			<groupId>io.projectreactor.ipc</groupId>
-			<artifactId>reactor-netty</artifactId>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-data-mongodb-reactive</artifactId>
 		</dependency>
 		<dependency>
-			<groupId>org.springframework.boot.experimental</groupId>
-			<artifactId>spring-boot-starter-web-reactive</artifactId>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-webflux</artifactId>
 		</dependency>
 
 		<dependency>
@@ -45,18 +45,6 @@
 			<scope>test</scope>
 		</dependency>
 	</dependencies>
-
-	<dependencyManagement>
-		<dependencies>
-			<dependency>
-				<groupId>org.springframework.boot.experimental</groupId>
-				<artifactId>spring-boot-dependencies-web-reactive</artifactId>
-				<version>0.1.0.BUILD-SNAPSHOT</version>
-				<type>pom</type>
-				<scope>import</scope>
-			</dependency>
-		</dependencies>
-	</dependencyManagement>
 
 	<build>
 		<plugins>
