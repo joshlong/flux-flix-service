@@ -16,6 +16,8 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.reactive.function.server.RouterFunction;
+import org.springframework.web.reactive.function.server.ServerResponse;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.util.function.Tuple2;
@@ -25,6 +27,9 @@ import java.time.Duration;
 import java.util.Date;
 import java.util.Random;
 import java.util.stream.Stream;
+
+import static org.springframework.web.reactive.function.server.RequestPredicates.GET;
+import static org.springframework.web.reactive.function.server.RouterFunctions.route;
 
 @SpringBootApplication
 public class FluxFlixServiceApplication {
@@ -44,6 +49,22 @@ public class FluxFlixServiceApplication {
         String[] genres = "romcom, comedy, horror, scifi, family, documentary, drama".split(", ");
         return genres[new Random().nextInt(genres.length)];
     }
+
+//    @Bean
+//    RouterFunction<?> routerFunction(FluxFlixService fluxFlixService) {
+//        return route(
+//                GET("/movies/{id}"),
+//                request -> ServerResponse.ok().body(fluxFlixService.findById(request.pathVariable("id")), Movie.class))
+//            .andRoute(
+//                GET("/movies"), request -> ServerResponse.ok().body(fluxFlixService.findAllMovies(), Movie.class))
+//            .andRoute(
+//                GET("/movies/{id}/events"),
+//                    request -> ServerResponse.ok()
+//                        .contentType(MediaType.TEXT_EVENT_STREAM)
+//                        .body(fluxFlixService.findById(request.pathVariable("id"))
+//                            .flatMapMany(fluxFlixService::findMovieEvents), MovieEvent.class));
+//    }
+
 
     public static void main(String[] args) {
         SpringApplication.run(FluxFlixServiceApplication.class, args);
