@@ -25,6 +25,7 @@ import reactor.util.function.Tuple2;
 import java.time.Duration;
 import java.util.Date;
 import java.util.Random;
+import java.util.UUID;
 import java.util.stream.Stream;
 
 import static org.springframework.web.reactive.function.server.RequestPredicates.GET;
@@ -39,7 +40,7 @@ public class FluxFlixServiceApplication {
 			Stream.of("AEon Flux", "Flux Gordon", "Enter the Mono<Void>", "The Silence of the Lambdas",
 					"The Flux & The Furious", "Y Tu Mono Tambien", "Flux to the Future", "The Streaming",
 					"Streaming Las Vegas", "The Fluxinator")
-					.map(title -> new Movie(title, randomGenre()))
+					.map(title -> new Movie(UUID.randomUUID().toString(), title, randomGenre()))
 					.forEach(movie -> movieRepository.save(movie).subscribe(System.out::println));
 		};
 	}
@@ -91,7 +92,7 @@ class MovieController {
 	@GetMapping(value = "/{id}/events", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
 	public Flux<MovieEvent> eventsForMovie(@PathVariable String id) {
 		return this.fluxFlixService.movieById(id)
-				.flatMap(this.fluxFlixService::eventsForMovie);
+				.flatMapMany(this.fluxFlixService::eventsForMovie);
 	}
 }
 
@@ -122,8 +123,7 @@ class FluxFlixService {
 	public Flux<MovieEvent> eventsForMovie(Movie movie) {
 		Flux<MovieEvent> eventFlux = Flux.fromStream(
 				Stream.generate(() -> new MovieEvent(Math.random() > .5 ? "Josh" : "Mark", movie, new Date())));
-		Flux<Long> intervalFlux = Flux.interval(Duration.ofSeconds(1));
-		return Flux.zip(eventFlux, intervalFlux).map(Tuple2::getT1);
+		return Flux.zip(eventFlux, Flux.interval(Duration.ofSeconds(1))).map(Tuple2::getT1);
 	}
 }
 
@@ -134,21 +134,14 @@ interface MovieRepository extends ReactiveMongoRepository<Movie, String> {
 
 @Document
 @Data
-@NoArgsConstructor
 @AllArgsConstructor
 class Movie {
 	@Id
 	private String id;
 	private String title, genre;
-
-	public Movie(String title, String genre) {
-		this.title = title;
-		this.genre = genre;
-	}
 }
 
 @Data
-@NoArgsConstructor
 @AllArgsConstructor
 class MovieEvent {
 	private String user;
