@@ -24,12 +24,12 @@ public class FluxFlixClientApplication {
 			client.get()
 					.uri(uriBuilder -> uriBuilder.path("").build())
 					.exchange()
-					.flatMap(clientResponse -> clientResponse.bodyToFlux(Movie.class))
+					.flatMapMany(clientResponse -> clientResponse.bodyToFlux(Movie.class))
 					.filter(movie -> movie.getTitle().equalsIgnoreCase("aeon flux"))
 					.subscribe(movie -> client.get()
-							.uri(uriBuilder -> uriBuilder.path("/{id}/events").build(movie.getId()))
+							.uri("/{id}/events", movie.getId())
 							.exchange()
-							.flatMap(clientResponse -> clientResponse.bodyToFlux(MovieEvent.class))
+							.flatMapMany(clientResponse -> clientResponse.bodyToFlux(MovieEvent.class))
 							.subscribe(System.out::println));
 		};
 	}
@@ -40,14 +40,12 @@ public class FluxFlixClientApplication {
 }
 
 @Data
-@NoArgsConstructor
 @AllArgsConstructor
 class Movie {
 	private String id, title, genre;
 }
 
 @Data
-@NoArgsConstructor
 @AllArgsConstructor
 class MovieEvent {
 	private String user;
