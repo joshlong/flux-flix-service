@@ -22,7 +22,7 @@ public class FluxFlixClientApplication {
 	CommandLineRunner demo(WebClient client) {
 		return strings -> {
 			client.get()
-					.uri(uriBuilder -> uriBuilder.path("").build())
+					.uri("")
 					.exchange()
 					.flatMapMany(clientResponse -> clientResponse.bodyToFlux(Movie.class))
 					.filter(movie -> movie.getTitle().equalsIgnoreCase("aeon flux"))
