@@ -33,6 +33,7 @@ import static org.springframework.web.reactive.function.server.RouterFunctions.r
 
 @SpringBootApplication
 public class FluxFlixServiceApplication {
+
 	@Bean
 	CommandLineRunner demoData(MovieRepository movieRepository) {
 		return strings -> {
