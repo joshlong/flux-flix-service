@@ -138,7 +138,7 @@ class FluxFlixService {
     }
 
     public Mono<Movie> byId(String id) {
-        return movieRepository.findOne(id);
+        return movieRepository.findById(id);
     }
 }
 

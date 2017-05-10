@@ -23,7 +23,6 @@ public class FfsClientApplication {
         return WebClient.create();
     }
 
-
     @Bean
     CommandLineRunner demo(WebClient webClient) {
         return args -> {
@@ -31,18 +30,18 @@ public class FfsClientApplication {
             String uriBase = "http://localhost:8080/movies/";
 
             webClient
-                    .get()
-                    .uri(uriBase)
-                    .exchange()
-                    .flatMapMany(cr -> cr.bodyToFlux(Movie.class))
-                    .filter(movie -> movie.getTitle().equalsIgnoreCase("aeon flux"))
-                    .subscribe(movie ->
-                            webClient
-                                    .get()
-                                    .uri(uriBase + "/" + movie.getId() + "/events")
-                                    .exchange()
-                                    .flatMapMany(cr -> cr.bodyToFlux(MovieEvent.class))
-                                    .subscribe(movieEvent -> log.info(movieEvent.toString())));
+                .get()
+                .uri(uriBase)
+                .exchange()
+                .flatMapMany(cr -> cr.bodyToFlux(Movie.class))
+                .filter(movie -> movie.getTitle().equalsIgnoreCase("aeon flux"))
+                .subscribe(movie ->
+                    webClient
+                        .get()
+                        .uri(uriBase + "/" + movie.getId() + "/events")
+                        .exchange()
+                        .flatMapMany(cr -> cr.bodyToFlux(MovieEvent.class))
+                        .subscribe(movieEvent -> log.info(movieEvent.toString())));
 
         };
     }
