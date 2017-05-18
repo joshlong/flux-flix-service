@@ -8,21 +8,32 @@ import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
 import org.springframework.data.mongodb.repository.ReactiveMongoRepository;
 import org.springframework.http.MediaType;
+import org.springframework.security.authentication.ReactiveAuthenticationManager;
+import org.springframework.security.authentication.UserDetailsRepositoryAuthenticationManager;
+import org.springframework.security.authorization.AuthorizationDecision;
+import org.springframework.security.config.web.server.HttpSecurity;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.userdetails.User;
+import org.springframework.security.web.server.authorization.AuthorizationContext;
 import org.springframework.stereotype.Component;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.server.*;
+import org.springframework.web.server.WebFilter;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.util.function.Tuple2;
 
 import java.time.Duration;
-import java.util.Date;
-import java.util.Random;
-import java.util.UUID;
+import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static org.springframework.web.reactive.function.server.RequestPredicates.GET;
@@ -34,13 +45,55 @@ public class FfsServiceApplication {
 
     @Bean
     RouterFunction<?> routerFunction(RouteHandler rh) {
-        return route(GET("/movies/"), rh::all)
+        return route(GET("/movies"), rh::all)
                 .andRoute(GET("/movies/{id}"), rh::byId)
                 .andRoute(GET("/movies/{id}/events"), rh::events);
     }
 
     public static void main(String[] args) {
         SpringApplication.run(FfsServiceApplication.class, args);
+    }
+}
+
+
+@Configuration
+class SecurityConfiguration {
+
+    public static final String AUTHORITY_ADMIN = "admin";
+    public static final String AUTHORITY_USER = "stream";
+
+    private Map<String, String> users = new ConcurrentHashMap<String, String>() {
+        {
+            put("sdeleuze", "password");
+            put("rwinch", "password");
+            put("mkheck", "password");
+            put("jlong", "password");
+        }
+    };
+
+    @Bean
+    ReactiveAuthenticationManager reactiveAuthenticationManager() {
+        return new UserDetailsRepositoryAuthenticationManager(
+                username -> Mono.justOrEmpty(users.get(username))
+                        .map(u -> new User(u, users.get(username),
+                                Stream.of(AUTHORITY_ADMIN, AUTHORITY_USER)
+                                        .map(SimpleGrantedAuthority::new)
+                                        .collect(Collectors.toList()))));
+    }
+
+    @Bean
+    WebFilter reactive(ReactiveAuthenticationManager manager) throws Exception {
+        HttpSecurity http = HttpSecurity.http();
+        http.authenticationManager(manager).httpBasic();
+        http.authorizeExchange().antMatchers("/**").access(this::authorize);
+        return http.build();
+    }
+
+    private Mono<AuthorizationDecision> authorize(Mono<Authentication> authentication, AuthorizationContext context) {
+        return authentication
+                .map(auth -> auth.getAuthorities().stream()
+                        .anyMatch(ga -> ga.getAuthority().equalsIgnoreCase(AUTHORITY_USER)))
+                .map(AuthorizationDecision::new);
     }
 }
 
