@@ -14,37 +14,43 @@ import org.springframework.data.mongodb.core.mapping.Document;
 import org.springframework.data.mongodb.repository.ReactiveMongoRepository;
 import org.springframework.http.MediaType;
 import org.springframework.security.authentication.ReactiveAuthenticationManager;
+import org.springframework.security.authentication.UserDetailsRepository;
 import org.springframework.security.authentication.UserDetailsRepositoryAuthenticationManager;
 import org.springframework.security.authorization.AuthorizationDecision;
 import org.springframework.security.config.web.server.HttpSecurity;
 import org.springframework.security.core.Authentication;
-import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.User;
 import org.springframework.security.web.server.authorization.AuthorizationContext;
 import org.springframework.stereotype.Component;
 import org.springframework.stereotype.Service;
-import org.springframework.web.reactive.function.server.*;
+import org.springframework.web.reactive.function.server.RouterFunction;
+import org.springframework.web.reactive.function.server.ServerRequest;
+import org.springframework.web.reactive.function.server.ServerResponse;
 import org.springframework.web.server.WebFilter;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.util.function.Tuple2;
 
 import java.time.Duration;
-import java.util.*;
+import java.util.Date;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import static java.util.Arrays.asList;
 import static org.springframework.web.reactive.function.server.RequestPredicates.GET;
-import static org.springframework.web.reactive.function.server.RouterFunctions.*;
-import static org.springframework.web.reactive.function.server.ServerResponse.*;
+import static org.springframework.web.reactive.function.server.RouterFunctions.route;
+import static org.springframework.web.reactive.function.server.ServerResponse.ok;
 
 @SpringBootApplication
 public class FfsServiceApplication {
 
     @Bean
-    RouterFunction<?> routerFunction(RouteHandler rh) {
+    RouterFunction<?> routerFunction(MovieHandler rh) {
         return route(GET("/movies"), rh::all)
                 .andRoute(GET("/movies/{id}"), rh::byId)
                 .andRoute(GET("/movies/{id}/events"), rh::events);
@@ -62,23 +68,33 @@ class SecurityConfiguration {
     public static final String AUTHORITY_ADMIN = "admin";
     public static final String AUTHORITY_USER = "stream";
 
-    private Map<String, String> users = new ConcurrentHashMap<String, String>() {
+    private Map<String, List<String>> users = new ConcurrentHashMap<String, List<String>>() {
         {
-            put("sdeleuze", "password");
-            put("rwinch", "password");
-            put("mkheck", "password");
-            put("jlong", "password");
+            put("sdeleuze", asList(AUTHORITY_ADMIN, AUTHORITY_USER));
+            put("apoutsma", asList(AUTHORITY_ADMIN, AUTHORITY_USER));
+            put("rwinch", asList(AUTHORITY_USER));
+            put("mkheck", asList(AUTHORITY_ADMIN, AUTHORITY_USER));
+            put("jlong", asList(AUTHORITY_USER));
         }
     };
 
     @Bean
+    UserDetailsRepository userDetailsRepository() {
+        return username -> Mono.justOrEmpty(users.get(username))
+                .map(ignore -> {
+                    List<String> authorities = users.get(username);
+                    List<SimpleGrantedAuthority> grantedAuthorities = authorities
+                            .stream()
+                            .map(SimpleGrantedAuthority::new)
+                            .collect(Collectors.toList());
+                    return new User(username, "password", grantedAuthorities);
+                });
+
+    }
+
+    @Bean
     ReactiveAuthenticationManager reactiveAuthenticationManager() {
-        return new UserDetailsRepositoryAuthenticationManager(
-                username -> Mono.justOrEmpty(users.get(username))
-                        .map(u -> new User(u, users.get(username),
-                                Stream.of(AUTHORITY_ADMIN, AUTHORITY_USER)
-                                        .map(SimpleGrantedAuthority::new)
-                                        .collect(Collectors.toList()))));
+        return new UserDetailsRepositoryAuthenticationManager(userDetailsRepository());
     }
 
     @Bean
@@ -89,20 +105,22 @@ class SecurityConfiguration {
         return http.build();
     }
 
-    private Mono<AuthorizationDecision> authorize(Mono<Authentication> authentication, AuthorizationContext context) {
+    private Mono<AuthorizationDecision> authorize(Mono<Authentication> authentication, AuthorizationContext ctx) {
         return authentication
-                .map(auth -> auth.getAuthorities().stream()
-                        .anyMatch(ga -> ga.getAuthority().equalsIgnoreCase(AUTHORITY_USER)))
+                .map(auth ->
+                        auth.getAuthorities()
+                                .stream()
+                                .anyMatch(ga -> ga.getAuthority().equalsIgnoreCase(AUTHORITY_USER)))
                 .map(AuthorizationDecision::new);
     }
 }
 
 @Component
-class RouteHandler {
+class MovieHandler {
 
     private final FluxFlixService ffs;
 
-    RouteHandler(FluxFlixService ffs) {
+    MovieHandler(FluxFlixService ffs) {
         this.ffs = ffs;
     }
 
@@ -127,7 +145,6 @@ class RouteHandler {
 class MovieEvent {
     private Movie movie;
     private Date when;
-    private String user;
 }
 
 /*
@@ -171,19 +188,10 @@ class FluxFlixService {
 
     public Flux<MovieEvent> streamStreams(String movieId) {
         return byId(movieId).flatMapMany(movie -> {
-
-            Flux<MovieEvent> eventFlux = Flux.fromStream(
-                    Stream.generate(() -> new MovieEvent(movie, new Date(), randomUser())));
-
+            Flux<MovieEvent> eventFlux = Flux.fromStream(Stream.generate(() -> new MovieEvent(movie, new Date())));
             Flux<Long> interval = Flux.interval(Duration.ofSeconds(1));
-
-            return Flux.zip(eventFlux, interval).map(Tuple2::getT1);
+            return eventFlux.zipWith(interval).map(Tuple2::getT1);
         });
-    }
-
-    private String randomUser() {
-        String users[] = "dsyer,sdeleuze,mkheck,jlong".split(",");
-        return users[new Random().nextInt(users.length)];
     }
 
     public Flux<Movie> all() {
@@ -207,7 +215,6 @@ class MovieDataCLR implements CommandLineRunner {
 
     @Override
     public void run(String... strings) throws Exception {
-
         this.movieRepository
                 .deleteAll()
                 .subscribe(null, null, () ->
