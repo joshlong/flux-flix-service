@@ -2,7 +2,6 @@ package com.example;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;
-import lombok.NoArgsConstructor;
 import lombok.extern.java.Log;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.SpringApplication;
@@ -24,23 +23,20 @@ public class FfsClientApplication {
     }
 
     @Bean
-    CommandLineRunner demo(WebClient webClient) {
-
-        return args ->
-                webClient
+    CommandLineRunner demo(WebClient client) {
+        return strings ->
+                client
                         .get()
                         .uri("")
                         .retrieve()
                         .bodyToFlux(Movie.class)
                         .filter(movie -> movie.getTitle().equalsIgnoreCase("aeon flux"))
-                        .subscribe(movie ->
-                                webClient
-                                        .get()
+                        .flatMap(movie ->
+                                client.get()
                                         .uri("/{id}/events", movie.getId())
                                         .retrieve()
-                                        .bodyToFlux(MovieEvent.class)
-                                        .subscribe(movieEvent -> log.info(movieEvent.toString())));
-
+                                        .bodyToFlux(MovieEvent.class))
+                        .subscribe(movieEvent -> log.info(movieEvent.toString()));
     }
 
     public static void main(String[] args) {
@@ -51,15 +47,14 @@ public class FfsClientApplication {
 
 @Data
 @AllArgsConstructor
-@NoArgsConstructor
 class MovieEvent {
     private Movie movie;
     private Date when;
 }
 
-@AllArgsConstructor
 @Data
+@AllArgsConstructor
 class Movie {
-    private String title;
     private String id;
+    private String title;
 }

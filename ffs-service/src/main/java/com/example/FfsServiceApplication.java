@@ -30,7 +30,6 @@ import org.springframework.web.reactive.function.server.ServerResponse;
 import org.springframework.web.server.WebFilter;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
-import reactor.util.function.Tuple2;
 
 import java.time.Duration;
 import java.util.Date;
@@ -189,8 +188,7 @@ class FluxFlixService {
     public Flux<MovieEvent> streamStreams(String movieId) {
         return byId(movieId).flatMapMany(movie -> {
             Flux<MovieEvent> eventFlux = Flux.fromStream(Stream.generate(() -> new MovieEvent(movie, new Date())));
-            Flux<Long> interval = Flux.interval(Duration.ofSeconds(1));
-            return eventFlux.zipWith(interval).map(Tuple2::getT1);
+            return eventFlux.delayElements(Duration.ofSeconds(1));
         });
     }
 
@@ -219,8 +217,9 @@ class MovieDataCLR implements CommandLineRunner {
                 .deleteAll()
                 .subscribe(null, null, () ->
                         Stream.of("Flux Gordon", "Enter the Mono<Void>", "Back to the Future", "AEon Flux")
-                                .map(title -> new Movie(title, UUID.randomUUID().toString()))
-                                .forEach(movie -> movieRepository.save(movie).subscribe(m -> log.info(m.toString()))));
+                                .map(title -> new Movie(UUID.randomUUID().toString(), title))
+                                .forEach(movie -> movieRepository.save(movie)
+                                        .subscribe(m -> log.info(m.toString()))));
     }
 }
 
@@ -231,9 +230,7 @@ interface MovieRepository extends ReactiveMongoRepository<Movie, String> {
 @Data
 @Document
 class Movie {
-
-    private String title;
-
     @Id
     private String id;
+    private String title;
 }
