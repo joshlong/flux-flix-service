@@ -134,20 +134,13 @@ class MovieHandler {
     Mono<ServerResponse> events(ServerRequest request) {
         return ok()
                 .contentType(MediaType.TEXT_EVENT_STREAM)
-                .body(ffs.streamStreams(request.pathVariable("id")), MovieEvent.class);
+                .body(ffs.byId(request.pathVariable("id"))
+                        .flatMapMany(ffs::streamStreams), MovieEvent.class);
     }
 }
 
-@Data
-@AllArgsConstructor
-@NoArgsConstructor
-class MovieEvent {
-    private Movie movie;
-    private Date when;
-}
 
 /*
-
 @RestController
 @RequestMapping("/movies")
 class FluxFlixRestController {
@@ -185,11 +178,9 @@ class FluxFlixService {
         this.movieRepository = movieRepository;
     }
 
-    public Flux<MovieEvent> streamStreams(String movieId) {
-        return byId(movieId).flatMapMany(movie -> {
-            Flux<MovieEvent> eventFlux = Flux.fromStream(Stream.generate(() -> new MovieEvent(movie, new Date())));
-            return eventFlux.delayElements(Duration.ofSeconds(1));
-        });
+    public Flux<MovieEvent> streamStreams(Movie movie) {
+        return Flux.fromStream(Stream.generate(() -> new MovieEvent(movie, new Date())))
+                .delayElements(Duration.ofSeconds(1));
     }
 
     public Flux<Movie> all() {
@@ -233,4 +224,12 @@ class Movie {
     @Id
     private String id;
     private String title;
+}
+
+@Data
+@AllArgsConstructor
+@NoArgsConstructor
+class MovieEvent {
+    private Movie movie;
+    private Date when;
 }
