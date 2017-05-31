@@ -37,6 +37,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -80,15 +81,10 @@ class SecurityConfiguration {
     @Bean
     UserDetailsRepository userDetailsRepository() {
         return username -> Mono.justOrEmpty(users.get(username))
-                .map(ignore -> {
-                    List<String> authorities = users.get(username);
-                    List<SimpleGrantedAuthority> grantedAuthorities = authorities
-                            .stream()
-                            .map(SimpleGrantedAuthority::new)
-                            .collect(Collectors.toList());
-                    return new User(username, "password", grantedAuthorities);
-                });
-
+                .flatMapIterable(Function.identity())
+                .map(SimpleGrantedAuthority::new)
+                .collectList()
+                .map(grantedAuthorities -> new User(username, "password", grantedAuthorities));
     }
 
     @Bean
@@ -106,10 +102,8 @@ class SecurityConfiguration {
 
     private Mono<AuthorizationDecision> authorize(Mono<Authentication> authentication, AuthorizationContext ctx) {
         return authentication
-                .map(auth ->
-                        auth.getAuthorities()
-                                .stream()
-                                .anyMatch(ga -> ga.getAuthority().equalsIgnoreCase(AUTHORITY_USER)))
+                .flatMapIterable(Authentication::getAuthorities)
+                .any(ga -> ga.getAuthority().equalsIgnoreCase(AUTHORITY_USER))
                 .map(AuthorizationDecision::new);
     }
 }
