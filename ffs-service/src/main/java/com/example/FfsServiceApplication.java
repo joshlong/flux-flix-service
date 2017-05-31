@@ -206,11 +206,11 @@ class MovieDataCLR implements CommandLineRunner {
     public void run(String... strings) throws Exception {
         this.movieRepository
                 .deleteAll()
-                .subscribe(null, null, () ->
-                        Stream.of("Flux Gordon", "Enter the Mono<Void>", "Back to the Future", "AEon Flux")
-                                .map(title -> new Movie(UUID.randomUUID().toString(), title))
-                                .forEach(movie -> movieRepository.save(movie)
-                                        .subscribe(m -> log.info(m.toString()))));
+                .thenMany(Flux.just("Flux Gordon", "Enter the Mono<Void>", "Back to the Future", "AEon Flux"))
+                .map(title -> new Movie(UUID.randomUUID().toString(), title))
+                .flatMap(movie -> movieRepository.save(movie))
+                .doOnNext(m -> log.info("Saved movie \u001B[32m" + m.getTitle() + "\u001B[0m (id=" + m.getId() + ")"))
+                .blockLast();
     }
 }
 
