@@ -163,6 +163,7 @@ class FluxFlixRestController {
 }
 */
 
+@Log
 @Service
 class FluxFlixService {
 
@@ -173,8 +174,13 @@ class FluxFlixService {
     }
 
     public Flux<MovieEvent> streamStreams(Movie movie) {
-        return Flux.fromStream(Stream.generate(() -> new MovieEvent(movie, new Date())))
-                .delayElements(Duration.ofSeconds(1));
+        return Flux.<MovieEvent>generate(sink -> sink.next(new MovieEvent(movie, new Date())))
+                   .delayElements(Duration.ofSeconds(1))
+        //alternatively:
+//        return Flux.interval(Duration.ofSeconds(1))
+//                .map(ignore -> new MovieEvent(movie, new Date()));
+                .doFinally(s -> log.info("Streaming info on '" + movie.getTitle() +
+                        "' ended: " + s));
     }
 
     public Flux<Movie> all() {
