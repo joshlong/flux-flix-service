@@ -37,6 +37,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -80,15 +81,10 @@ class SecurityConfiguration {
     @Bean
     UserDetailsRepository userDetailsRepository() {
         return username -> Mono.justOrEmpty(users.get(username))
-                .map(ignore -> {
-                    List<String> authorities = users.get(username);
-                    List<SimpleGrantedAuthority> grantedAuthorities = authorities
-                            .stream()
-                            .map(SimpleGrantedAuthority::new)
-                            .collect(Collectors.toList());
-                    return new User(username, "password", grantedAuthorities);
-                });
-
+                .flatMapIterable(Function.identity())
+                .map(SimpleGrantedAuthority::new)
+                .collectList()
+                .map(grantedAuthorities -> new User(username, "password", grantedAuthorities));
     }
 
     @Bean
@@ -106,10 +102,8 @@ class SecurityConfiguration {
 
     private Mono<AuthorizationDecision> authorize(Mono<Authentication> authentication, AuthorizationContext ctx) {
         return authentication
-                .map(auth ->
-                        auth.getAuthorities()
-                                .stream()
-                                .anyMatch(ga -> ga.getAuthority().equalsIgnoreCase(AUTHORITY_USER)))
+                .flatMapIterable(Authentication::getAuthorities)
+                .any(ga -> ga.getAuthority().equalsIgnoreCase(AUTHORITY_USER))
                 .map(AuthorizationDecision::new);
     }
 }
@@ -169,6 +163,7 @@ class FluxFlixRestController {
 }
 */
 
+@Log
 @Service
 class FluxFlixService {
 
@@ -179,8 +174,13 @@ class FluxFlixService {
     }
 
     public Flux<MovieEvent> streamStreams(Movie movie) {
-        return Flux.fromStream(Stream.generate(() -> new MovieEvent(movie, new Date())))
-                .delayElements(Duration.ofSeconds(1));
+        return Flux.<MovieEvent>generate(sink -> sink.next(new MovieEvent(movie, new Date())))
+                   .delayElements(Duration.ofSeconds(1))
+        //alternatively:
+//        return Flux.interval(Duration.ofSeconds(1))
+//                .map(ignore -> new MovieEvent(movie, new Date()));
+                .doFinally(s -> log.info("Streaming info on '" + movie.getTitle() +
+                        "' ended: " + s));
     }
 
     public Flux<Movie> all() {
@@ -206,11 +206,11 @@ class MovieDataCLR implements CommandLineRunner {
     public void run(String... strings) throws Exception {
         this.movieRepository
                 .deleteAll()
-                .subscribe(null, null, () ->
-                        Stream.of("Flux Gordon", "Enter the Mono<Void>", "Back to the Future", "AEon Flux")
-                                .map(title -> new Movie(UUID.randomUUID().toString(), title))
-                                .forEach(movie -> movieRepository.save(movie)
-                                        .subscribe(m -> log.info(m.toString()))));
+                .thenMany(Flux.just("Flux Gordon", "Enter the Mono<Void>", "Back to the Future", "AEon Flux"))
+                .map(title -> new Movie(UUID.randomUUID().toString(), title))
+                .flatMap(movie -> movieRepository.save(movie))
+                .doOnNext(m -> log.info("Saved movie \u001B[32m" + m.getTitle() + "\u001B[0m (id=" + m.getId() + ")"))
+                .blockLast();
     }
 }
 
