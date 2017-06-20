@@ -15,6 +15,7 @@ import org.springframework.http.MediaType;
 import org.springframework.security.authorization.AuthorizationDecision;
 import org.springframework.security.config.annotation.web.reactive.EnableWebFluxSecurity;
 import org.springframework.security.config.web.server.HttpSecurity;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.core.userdetails.MapUserDetailsRepository;
 import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -28,6 +29,7 @@ import org.springframework.web.reactive.function.server.ServerResponse;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
+import java.security.Principal;
 import java.time.Duration;
 import java.util.Date;
 import java.util.UUID;
@@ -44,7 +46,8 @@ public class FfsServiceApplication {
         return route(GET("/movies"), rh::all)
                 .andRoute(GET("/movies/{id}"), rh::byId)
                 .andRoute(GET("/movies/{id}/events"), rh::events)
-                .andRoute(GET("/users/{username}"), uh::byUsername);
+                .andRoute(GET("/users/{username}"), uh::byUsername)
+                .andRoute(GET("/users/me"), uh::current);
     }
 
     public static void main(String[] args) {
@@ -69,6 +72,7 @@ class SecurityConfiguration {
     SecurityWebFilterChain springSecurity(HttpSecurity http) {
         return http
                 .authorizeExchange()
+                    .pathMatchers("/users/me").authenticated()
                     .pathMatchers("/users/{username}").access((auth,context) ->
                         auth
                                 .map( a-> a.getName().equals(context.getVariables().get("username")))
@@ -92,6 +96,17 @@ class UserHandler {
         return ok()
                 .contentType(MediaType.APPLICATION_JSON)
                 .body(udr.findByUsername(request.pathVariable("username")), UserDetails.class);
+    }
+
+    Mono<ServerResponse> current(ServerRequest request) {
+        return ok()
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(request.principal()
+                        .cast(Authentication.class)
+                        .map( authentication -> authentication.getPrincipal())
+                        .cast(UserDetails.class),
+                    UserDetails.class
+                );
     }
 }
 
