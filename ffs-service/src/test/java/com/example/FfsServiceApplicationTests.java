@@ -82,4 +82,35 @@ public class FfsServiceApplicationTests {
 				.exchange()
 				.expectStatus().isOk();
 	}
+
+	@Test
+	public void getUsersRobWhenIsRobThenIsOk() {
+		client
+				.filter(basicAuthentication("rob","password"))
+				.get()
+				.uri("/users/rob")
+				.exchange()
+				.expectStatus().isOk();
+	}
+
+	@Test
+	public void getUsersRobWhenIsJoshThenIsForbidden() {
+		client
+				.filter(basicAuthentication("josh","password"))
+				.get()
+				.uri("/users/rob")
+				.exchange()
+				.expectStatus().isEqualTo(HttpStatus.FORBIDDEN)
+				.expectBody().isEmpty();
+	}
+
+	@Test
+	public void getUsersRobWhenNotAuthenticatedThenIsUnauthorized() {
+		client
+				.get()
+				.uri("/users/rob")
+				.exchange()
+				.expectStatus().isUnauthorized()
+				.expectBody().isEmpty();
+	}
 }

@@ -12,10 +12,12 @@ import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
 import org.springframework.data.mongodb.repository.ReactiveMongoRepository;
 import org.springframework.http.MediaType;
+import org.springframework.security.authorization.AuthorizationDecision;
 import org.springframework.security.config.annotation.web.reactive.EnableWebFluxSecurity;
 import org.springframework.security.config.web.server.HttpSecurity;
 import org.springframework.security.core.userdetails.MapUserDetailsRepository;
 import org.springframework.security.core.userdetails.User;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsRepository;
 import org.springframework.security.web.server.SecurityWebFilterChain;
 import org.springframework.stereotype.Component;
@@ -38,10 +40,11 @@ import static org.springframework.web.reactive.function.server.ServerResponse.ok
 public class FfsServiceApplication {
 
     @Bean
-    RouterFunction<?> routerFunction(MovieHandler rh) {
+    RouterFunction<?> routerFunction(MovieHandler rh, UserHandler uh) {
         return route(GET("/movies"), rh::all)
                 .andRoute(GET("/movies/{id}"), rh::byId)
-                .andRoute(GET("/movies/{id}/events"), rh::events);
+                .andRoute(GET("/movies/{id}/events"), rh::events)
+                .andRoute(GET("/users/{username}"), uh::byUsername);
     }
 
     public static void main(String[] args) {
@@ -66,9 +69,29 @@ class SecurityConfiguration {
     SecurityWebFilterChain springSecurity(HttpSecurity http) {
         return http
                 .authorizeExchange()
+                    .pathMatchers("/users/{username}").access((auth,context) ->
+                        auth
+                                .map( a-> a.getName().equals(context.getVariables().get("username")))
+                                .map(AuthorizationDecision::new)
+                    )
                     .anyExchange().hasRole("ADMIN")
                     .and()
                 .build();
+    }
+}
+
+@Component
+class UserHandler {
+    private final UserDetailsRepository udr;
+
+    UserHandler(UserDetailsRepository udr) {
+        this.udr = udr;
+    }
+
+    Mono<ServerResponse> byUsername(ServerRequest request) {
+        return ok()
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(udr.findByUsername(request.pathVariable("username")), UserDetails.class);
     }
 }
 
