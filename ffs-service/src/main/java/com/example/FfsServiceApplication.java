@@ -7,6 +7,7 @@ import lombok.extern.java.Log;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.boot.autoconfigure.security.SecurityProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.data.annotation.Id;
@@ -14,20 +15,20 @@ import org.springframework.data.mongodb.core.mapping.Document;
 import org.springframework.data.mongodb.repository.ReactiveMongoRepository;
 import org.springframework.http.MediaType;
 import org.springframework.security.authentication.ReactiveAuthenticationManager;
-import org.springframework.security.authentication.UserDetailsRepository;
 import org.springframework.security.authentication.UserDetailsRepositoryAuthenticationManager;
 import org.springframework.security.authorization.AuthorizationDecision;
 import org.springframework.security.config.web.server.HttpSecurity;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.User;
+import org.springframework.security.core.userdetails.UserDetailsRepository;
+import org.springframework.security.web.server.SecurityWebFilterChain;
 import org.springframework.security.web.server.authorization.AuthorizationContext;
 import org.springframework.stereotype.Component;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.server.RouterFunction;
 import org.springframework.web.reactive.function.server.ServerRequest;
 import org.springframework.web.reactive.function.server.ServerResponse;
-import org.springframework.web.server.WebFilter;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
@@ -38,8 +39,6 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 import static java.util.Arrays.asList;
 import static org.springframework.web.reactive.function.server.RequestPredicates.GET;
@@ -93,10 +92,10 @@ class SecurityConfiguration {
     }
 
     @Bean
-    WebFilter reactive(ReactiveAuthenticationManager manager) throws Exception {
+    SecurityWebFilterChain reactive(ReactiveAuthenticationManager manager) throws Exception {
         HttpSecurity http = HttpSecurity.http();
         http.authenticationManager(manager).httpBasic();
-        http.authorizeExchange().antMatchers("/**").access(this::authorize);
+        http.authorizeExchange().pathMatchers("/**").access(this::authorize);
         return http.build();
     }
 
