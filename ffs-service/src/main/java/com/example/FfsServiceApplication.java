@@ -55,14 +55,18 @@ class SecurityConfiguration {
 
     @Bean
     UserDetailsRepository userDetailsRepository() {
-        return new MapUserDetailsRepository(User.withUsername("rob").password("password").roles("USER").build());
+        return new MapUserDetailsRepository(user("rob").build(), user("josh").roles("USER","ADMIN").build());
+    }
+
+    private User.UserBuilder user(String username) {
+        return User.withUsername(username).password("password").roles("USER");
     }
 
     @Bean
     SecurityWebFilterChain springSecurity(HttpSecurity http) {
         return http
                 .authorizeExchange()
-                    .anyExchange().authenticated()
+                    .anyExchange().hasRole("ADMIN")
                     .and()
                 .build();
     }
