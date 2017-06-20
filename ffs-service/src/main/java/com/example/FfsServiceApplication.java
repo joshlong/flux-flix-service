@@ -8,40 +8,32 @@ import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
 import org.springframework.data.mongodb.repository.ReactiveMongoRepository;
 import org.springframework.http.MediaType;
-import org.springframework.security.authentication.ReactiveAuthenticationManager;
-import org.springframework.security.authentication.UserDetailsRepository;
-import org.springframework.security.authentication.UserDetailsRepositoryAuthenticationManager;
 import org.springframework.security.authorization.AuthorizationDecision;
+import org.springframework.security.config.annotation.web.reactive.EnableWebFluxSecurity;
 import org.springframework.security.config.web.server.HttpSecurity;
 import org.springframework.security.core.Authentication;
-import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.userdetails.MapUserDetailsRepository;
 import org.springframework.security.core.userdetails.User;
-import org.springframework.security.web.server.authorization.AuthorizationContext;
+import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.core.userdetails.UserDetailsRepository;
+import org.springframework.security.web.server.SecurityWebFilterChain;
 import org.springframework.stereotype.Component;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.server.RouterFunction;
 import org.springframework.web.reactive.function.server.ServerRequest;
 import org.springframework.web.reactive.function.server.ServerResponse;
-import org.springframework.web.server.WebFilter;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
+import java.security.Principal;
 import java.time.Duration;
 import java.util.Date;
-import java.util.List;
-import java.util.Map;
 import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.function.Function;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
-import static java.util.Arrays.asList;
 import static org.springframework.web.reactive.function.server.RequestPredicates.GET;
 import static org.springframework.web.reactive.function.server.RouterFunctions.route;
 import static org.springframework.web.reactive.function.server.ServerResponse.ok;
@@ -50,10 +42,12 @@ import static org.springframework.web.reactive.function.server.ServerResponse.ok
 public class FfsServiceApplication {
 
     @Bean
-    RouterFunction<?> routerFunction(MovieHandler rh) {
+    RouterFunction<?> routerFunction(MovieHandler rh, UserHandler uh) {
         return route(GET("/movies"), rh::all)
                 .andRoute(GET("/movies/{id}"), rh::byId)
-                .andRoute(GET("/movies/{id}/events"), rh::events);
+                .andRoute(GET("/movies/{id}/events"), rh::events)
+                .andRoute(GET("/users/{username}"), uh::byUsername)
+                .andRoute(GET("/users/me"), uh::current);
     }
 
     public static void main(String[] args) {
@@ -62,49 +56,57 @@ public class FfsServiceApplication {
 }
 
 
-@Configuration
+@EnableWebFluxSecurity
 class SecurityConfiguration {
-
-    public static final String AUTHORITY_ADMIN = "admin";
-    public static final String AUTHORITY_USER = "stream";
-
-    private Map<String, List<String>> users = new ConcurrentHashMap<String, List<String>>() {
-        {
-            put("sdeleuze", asList(AUTHORITY_ADMIN, AUTHORITY_USER));
-            put("apoutsma", asList(AUTHORITY_ADMIN, AUTHORITY_USER));
-            put("rwinch", asList(AUTHORITY_USER));
-            put("mkheck", asList(AUTHORITY_ADMIN, AUTHORITY_USER));
-            put("jlong", asList(AUTHORITY_USER));
-        }
-    };
 
     @Bean
     UserDetailsRepository userDetailsRepository() {
-        return username -> Mono.justOrEmpty(users.get(username))
-                .flatMapIterable(Function.identity())
-                .map(SimpleGrantedAuthority::new)
-                .collectList()
-                .map(grantedAuthorities -> new User(username, "password", grantedAuthorities));
+        return new MapUserDetailsRepository(user("rob").build(), user("josh").roles("USER","ADMIN").build());
+    }
+
+    private User.UserBuilder user(String username) {
+        return User.withUsername(username).password("password").roles("USER");
     }
 
     @Bean
-    ReactiveAuthenticationManager reactiveAuthenticationManager() {
-        return new UserDetailsRepositoryAuthenticationManager(userDetailsRepository());
+    SecurityWebFilterChain springSecurity(HttpSecurity http) {
+        return http
+                .authorizeExchange()
+                    .pathMatchers("/users/me").authenticated()
+                    .pathMatchers("/users/{username}").access((auth,context) ->
+                        auth
+                                .map( a-> a.getName().equals(context.getVariables().get("username")))
+                                .map(AuthorizationDecision::new)
+                    )
+                    .anyExchange().hasRole("ADMIN")
+                    .and()
+                .build();
+    }
+}
+
+@Component
+class UserHandler {
+    private final UserDetailsRepository udr;
+
+    UserHandler(UserDetailsRepository udr) {
+        this.udr = udr;
     }
 
-    @Bean
-    WebFilter reactive(ReactiveAuthenticationManager manager) throws Exception {
-        HttpSecurity http = HttpSecurity.http();
-        http.authenticationManager(manager).httpBasic();
-        http.authorizeExchange().antMatchers("/**").access(this::authorize);
-        return http.build();
+    Mono<ServerResponse> byUsername(ServerRequest request) {
+        return ok()
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(udr.findByUsername(request.pathVariable("username")), UserDetails.class);
     }
 
-    private Mono<AuthorizationDecision> authorize(Mono<Authentication> authentication, AuthorizationContext ctx) {
-        return authentication
-                .flatMapIterable(Authentication::getAuthorities)
-                .any(ga -> ga.getAuthority().equalsIgnoreCase(AUTHORITY_USER))
-                .map(AuthorizationDecision::new);
+    Mono<ServerResponse> current(ServerRequest request) {
+        return ok()
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(request.principal()
+                        .cast(Authentication.class)
+                        .map( authentication -> authentication.getPrincipal())
+                        .cast(UserDetails.class),
+                    UserDetails.class
+                );
     }
 }
 
