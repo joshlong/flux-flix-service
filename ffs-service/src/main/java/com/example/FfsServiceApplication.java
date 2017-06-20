@@ -13,9 +13,11 @@ import org.springframework.data.mongodb.core.mapping.Document;
 import org.springframework.data.mongodb.repository.ReactiveMongoRepository;
 import org.springframework.http.MediaType;
 import org.springframework.security.config.annotation.web.reactive.EnableWebFluxSecurity;
+import org.springframework.security.config.web.server.HttpSecurity;
 import org.springframework.security.core.userdetails.MapUserDetailsRepository;
 import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UserDetailsRepository;
+import org.springframework.security.web.server.SecurityWebFilterChain;
 import org.springframework.stereotype.Component;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.server.RouterFunction;
@@ -54,6 +56,15 @@ class SecurityConfiguration {
     @Bean
     UserDetailsRepository userDetailsRepository() {
         return new MapUserDetailsRepository(User.withUsername("rob").password("password").roles("USER").build());
+    }
+
+    @Bean
+    SecurityWebFilterChain springSecurity(HttpSecurity http) {
+        return http
+                .authorizeExchange()
+                    .anyExchange().authenticated()
+                    .and()
+                .build();
     }
 }
 
