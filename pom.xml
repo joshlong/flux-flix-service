@@ -7,7 +7,7 @@
 	<version>0.0.1-SNAPSHOT</version>
 	<packaging>pom</packaging>
 	<modules>
-		<module>ffs-client</module>
-		<module>ffs-service</module>
+		<module>flux-flix-client</module>
+		<module>flux-flix-service</module>
 	</modules>
 </project>
