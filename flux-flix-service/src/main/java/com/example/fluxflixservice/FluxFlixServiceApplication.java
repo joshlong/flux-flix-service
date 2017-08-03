@@ -192,7 +192,7 @@ class MovieService {
     }
 
     Flux<MovieEvent> events(String id) {
-        return byId(id).flatMapMany(movie -> {
+        return Mono.just(new Movie("hi")).flatMapMany(movie -> {
             Flux<MovieEvent> movieEvents = Flux.generate(
                     sink -> sink.next(new MovieEvent(new Date(), movie)));
             Flux<Long> interval = Flux.interval(Duration.ofSeconds(1));
