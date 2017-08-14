@@ -1,8 +1,6 @@
-package com.example.flixfluxservice;
+package com.example;
 
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.*;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
@@ -40,13 +38,12 @@ import java.util.stream.Stream;
 import static org.springframework.web.reactive.function.server.RequestPredicates.*;
 
 @SpringBootApplication
-public class FlixFluxServiceApplication {
+public class FfsServiceApplication {
 
     public static void main(String[] args) {
-        SpringApplication.run(FlixFluxServiceApplication.class, args);
+        SpringApplication.run(FfsServiceApplication.class, args);
     }
 }
-
 
 @Component
 class UserHandler {
@@ -165,7 +162,7 @@ class DataAppInitializr {
                 .thenMany(
                         Flux
                                 .just("Foo", "Bar")
-                                .flatMap(title -> this.movieRepository.save(new Movie(UUID.randomUUID().toString(), title))))
+                                .flatMap(title -> this.movieRepository.save(new Movie(title))))
                 .subscribe(null, null,
                         () -> this.movieRepository.findAll().subscribe(System.out::println));
 
@@ -198,18 +195,8 @@ class WebConfiguration {
     }
 }
 
-
-@AllArgsConstructor
-@NoArgsConstructor
-@Data
-class MovieEvent {
-    private Movie movie;
-    private Date date;
-}
-
 @Service
 class FluxFlixService {
-
     private final MovieRepository movieRepository;
 
     FluxFlixService(MovieRepository movieRepository) {
@@ -217,11 +204,8 @@ class FluxFlixService {
     }
 
     public Flux<MovieEvent> events(String movieId) {
-        return byId(movieId).flatMapMany(movie -> {
-            Flux<Long> interval = Flux.interval(Duration.ofSeconds(1));
-            Flux<MovieEvent> movieEventFlux = Flux.fromStream(Stream.generate(() -> new MovieEvent(movie, new Date())));
-            return Flux.zip(interval, movieEventFlux).map(Tuple2::getT2);
-        });
+        return Flux.<MovieEvent>generate(sink -> sink.next(new MovieEvent(movieId, new Date())))
+                .delayElements(Duration.ofSeconds(1));
     }
 
     public Mono<Movie> byId(String id) {
@@ -231,7 +215,6 @@ class FluxFlixService {
     public Flux<Movie> all() {
         return this.movieRepository.findAll();
     }
-
 }
 
 interface MovieRepository extends ReactiveMongoRepository<Movie, String> {
@@ -239,11 +222,18 @@ interface MovieRepository extends ReactiveMongoRepository<Movie, String> {
 
 @Document
 @Data
-@AllArgsConstructor
 @NoArgsConstructor
+@RequiredArgsConstructor
 class Movie {
-
-    @Id
     private String id;
+    @NonNull
     private String title;
+}
+
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+class MovieEvent {
+    private String movieId;
+    private Date date;
 }
