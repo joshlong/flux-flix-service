@@ -180,7 +180,7 @@ class DataAppInitializr {
 class WebConfiguration {
 
     @Bean
-    RouterFunction<?> routes(FluxFlixService ffs) {
+    RouterFunction<?> routes(FluxFlixService ffs, UserHandler uh) {
         return RouterFunctions
                 
                 .route(GET("/movies"),
@@ -190,8 +190,9 @@ class WebConfiguration {
                 .andRoute(GET("/movies/{id}/events"), serverRequest ->
                         ServerResponse.ok()
                                 .contentType(MediaType.TEXT_EVENT_STREAM)
-                                .body(ffs.events(serverRequest.pathVariable("id")), MovieEvent.class));
-                // .andRoute(GET("/users/me"), uh::current);
+                                .body(ffs.events(serverRequest.pathVariable("id")), MovieEvent.class))
+                 .andRoute(GET("/users/me"), uh::current)
+                 .andRoute(GET("/users/{username}"), uh::byUsername);
     }
 }
 
