@@ -8,10 +8,14 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.ApplicationContext;
 import org.springframework.http.HttpStatus;
 import org.springframework.test.context.junit4.SpringRunner;
-import org.springframework.test.web.reactive.server.ExchangeMutatorWebFilter;
 import org.springframework.test.web.reactive.server.WebTestClient;
+import org.springframework.web.reactive.function.client.ExchangeFilterFunctions;
 
-import static org.springframework.security.test.web.reactive.server.SecurityExchangeMutators.withUser;
+import java.util.Map;
+import java.util.function.Consumer;
+
+import static org.springframework.security.test.web.reactive.server.SecurityMockServerConfigurers.mockUser;
+import static org.springframework.security.test.web.reactive.server.SecurityMockServerConfigurers.springSecurity;
 import static org.springframework.web.reactive.function.client.ExchangeFilterFunctions.basicAuthentication;
 
 @RunWith(SpringRunner.class)
@@ -20,16 +24,15 @@ public class FfsServiceApplicationTests {
 	@Autowired
 	ApplicationContext context;
 
-	ExchangeMutatorWebFilter mutator = new ExchangeMutatorWebFilter();
-
 	WebTestClient client;
 
 	@Before
 	public void setup() {
 		client = WebTestClient
 				.bindToApplicationContext(context)
-				.webFilter(mutator)
+				.apply(springSecurity())
 				.configureClient()
+				.filter(basicAuthentication())
 				.baseUrl("http://localhost:8080/")
 				.build();
 	}
@@ -46,9 +49,9 @@ public class FfsServiceApplicationTests {
 	@Test
 	public void getMoviesWhenNotAdminThenIsForbidden() {
 		client
-				.filter(basicAuthentication("rob","password"))
 				.get()
 				.uri("/movies/")
+				.attributes(joshsCredentials())
 				.exchange()
 				.expectStatus().isEqualTo(HttpStatus.FORBIDDEN);
 	}
@@ -56,9 +59,9 @@ public class FfsServiceApplicationTests {
 	@Test
 	public void getMoviesWhenIsAdminThenIsOk() {
 		client
-				.filter(basicAuthentication("josh","password"))
 				.get()
 				.uri("/movies/")
+				.attributes(robsCredentials())
 				.exchange()
 				.expectStatus().isOk();
 	}
@@ -66,7 +69,7 @@ public class FfsServiceApplicationTests {
 	@Test
 	public void getMoviesWhenMockNotAdminThenIsForbidden() {
 		client
-				.filter(mutator.perClient(withUser()))
+				.mutateWith(mockUser())
 				.get()
 				.uri("/movies/")
 				.exchange()
@@ -76,7 +79,7 @@ public class FfsServiceApplicationTests {
 	@Test
 	public void getMoviesWhenMockIsAdminThenIsOk() {
 		client
-				.filter(mutator.perClient(withUser().roles("ADMIN")))
+				.mutateWith(mockUser().roles("ADMIN"))
 				.get()
 				.uri("/movies/")
 				.exchange()
@@ -86,9 +89,9 @@ public class FfsServiceApplicationTests {
 	@Test
 	public void getUsersRobWhenIsRobThenIsOk() {
 		client
-				.filter(basicAuthentication("rob","password"))
 				.get()
 				.uri("/users/rob")
+				.attributes(robsCredentials())
 				.exchange()
 				.expectStatus().isOk();
 	}
@@ -96,9 +99,9 @@ public class FfsServiceApplicationTests {
 	@Test
 	public void getUsersRobWhenIsJoshThenIsForbidden() {
 		client
-				.filter(basicAuthentication("josh","password"))
 				.get()
 				.uri("/users/rob")
+				.attributes(joshsCredentials())
 				.exchange()
 				.expectStatus().isEqualTo(HttpStatus.FORBIDDEN)
 				.expectBody().isEmpty();
@@ -117,21 +120,21 @@ public class FfsServiceApplicationTests {
 	@Test
 	public void getUsersMeWhenIsRobThenIsOk() {
 		client
-				.filter(basicAuthentication("rob","password"))
 				.get()
 				.uri("/users/me")
+				.attributes(robsCredentials())
 				.exchange()
 				.expectStatus().isOk();
 	}
 
 	@Test
-	public void getUsersMeWhenIsJoshThenIsOk() {
+	public void getUsersMeWhenIsJoshThenIsForbidden() {
 		client
-				.filter(basicAuthentication("josh","password"))
 				.get()
 				.uri("/users/me")
+				.attributes(joshsCredentials())
 				.exchange()
-				.expectStatus().isOk();
+				.expectStatus().isEqualTo(HttpStatus.FORBIDDEN);
 	}
 
 	@Test
@@ -142,5 +145,26 @@ public class FfsServiceApplicationTests {
 				.exchange()
 				.expectStatus().isUnauthorized()
 				.expectBody().isEmpty();
+	}
+
+	private Consumer<Map<String, Object>> robsCredentials() {
+		return basicAuthenticationCredentials("rwinch", "password");
+	}
+
+	private Consumer<Map<String, Object>> joshsCredentials() {
+		return basicAuthenticationCredentials("jlong", "password");
+	}
+
+	/**
+	 * This is coming in Spring Framework 5.0.0.RC3
+	 * @param username
+	 * @param password
+	 * @return
+	 */
+	public static Consumer<Map<String, Object>> basicAuthenticationCredentials(String username, String password) {
+		return attributes -> {
+			attributes.put(ExchangeFilterFunctions.USERNAME_ATTRIBUTE, username);
+			attributes.put(ExchangeFilterFunctions.PASSWORD_ATTRIBUTE, password);
+		};
 	}
 }
