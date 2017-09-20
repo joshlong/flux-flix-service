@@ -21,150 +21,138 @@ import static org.springframework.web.reactive.function.client.ExchangeFilterFun
 @RunWith(SpringRunner.class)
 @SpringBootTest
 public class FfsServiceApplicationTests {
-	@Autowired
-	ApplicationContext context;
 
-	WebTestClient client;
+    @Autowired
+    private ApplicationContext context;
 
-	@Before
-	public void setup() {
-		client = WebTestClient
-				.bindToApplicationContext(context)
-				.apply(springSecurity())
-				.configureClient()
-				.filter(basicAuthentication())
-				.baseUrl("http://localhost:8080/")
-				.build();
-	}
+    private WebTestClient client;
 
-	@Test
-	public void getMoviesWhenNotAuthenticatedThenIsUnauthorized() {
-		client
-				.get()
-				.uri("/movies/")
-				.exchange()
-				.expectStatus().isUnauthorized();
-	}
+    @Before
+    public void setup() {
+        client = WebTestClient
+                .bindToApplicationContext(context)
+                .apply(springSecurity())
+                .configureClient()
+                .filter(basicAuthentication())
+                .baseUrl("http://localhost:8080/")
+                .build();
+    }
 
-	@Test
-	public void getMoviesWhenNotAdminThenIsForbidden() {
-		client
-				.get()
-				.uri("/movies/")
-				.attributes(joshsCredentials())
-				.exchange()
-				.expectStatus().isEqualTo(HttpStatus.FORBIDDEN);
-	}
+    @Test
+    public void getMoviesWhenNotAuthenticatedThenIsUnauthorized() {
+        client
+                .get()
+                .uri("/movies/")
+                .exchange()
+                .expectStatus().isUnauthorized();
+    }
 
-	@Test
-	public void getMoviesWhenIsAdminThenIsOk() {
-		client
-				.get()
-				.uri("/movies/")
-				.attributes(robsCredentials())
-				.exchange()
-				.expectStatus().isOk();
-	}
+    @Test
+    public void getMoviesWhenNotAdminThenIsForbidden() {
+        client
+                .get()
+                .uri("/movies/")
+                .attributes(joshsCredentials())
+                .exchange()
+                .expectStatus().isEqualTo(HttpStatus.FORBIDDEN);
+    }
 
-	@Test
-	public void getMoviesWhenMockNotAdminThenIsForbidden() {
-		client
-				.mutateWith(mockUser())
-				.get()
-				.uri("/movies/")
-				.exchange()
-				.expectStatus().isEqualTo(HttpStatus.FORBIDDEN);
-	}
+    @Test
+    public void getMoviesWhenIsAdminThenIsOk() {
+        client
+                .get()
+                .uri("/movies/")
+                .attributes(robsCredentials())
+                .exchange()
+                .expectStatus().isOk();
+    }
 
-	@Test
-	public void getMoviesWhenMockIsAdminThenIsOk() {
-		client
-				.mutateWith(mockUser().roles("ADMIN"))
-				.get()
-				.uri("/movies/")
-				.exchange()
-				.expectStatus().isOk();
-	}
+    @Test
+    public void getMoviesWhenMockNotAdminThenIsForbidden() {
+        client
+                .mutateWith(mockUser())
+                .get()
+                .uri("/movies/")
+                .exchange()
+                .expectStatus().isEqualTo(HttpStatus.FORBIDDEN);
+    }
 
-	@Test
-	public void getUsersRobWhenIsRobThenIsOk() {
-		client
-				.get()
-				.uri("/users/rob")
-				.attributes(robsCredentials())
-				.exchange()
-				.expectStatus().isOk();
-	}
+    @Test
+    public void getMoviesWhenMockIsAdminThenIsOk() {
+        client
+                .mutateWith(mockUser().roles("ADMIN"))
+                .get()
+                .uri("/movies/")
+                .exchange()
+                .expectStatus().isOk();
+    }
 
-	@Test
-	public void getUsersRobWhenIsJoshThenIsForbidden() {
-		client
-				.get()
-				.uri("/users/rob")
-				.attributes(joshsCredentials())
-				.exchange()
-				.expectStatus().isEqualTo(HttpStatus.FORBIDDEN)
-				.expectBody().isEmpty();
-	}
+    @Test
+    public void getUsersRobWhenIsRobThenIsOk() {
+        client
+                .get()
+                .uri("/users/rob")
+                .attributes(robsCredentials())
+                .exchange()
+                .expectStatus().isOk();
+    }
 
-	@Test
-	public void getUsersRobWhenNotAuthenticatedThenIsUnauthorized() {
-		client
-				.get()
-				.uri("/users/rob")
-				.exchange()
-				.expectStatus().isUnauthorized()
-				.expectBody().isEmpty();
-	}
+    @Test
+    public void getUsersRobWhenIsJoshThenIsForbidden() {
+        client
+                .get()
+                .uri("/users/rob")
+                .attributes(joshsCredentials())
+                .exchange()
+                .expectStatus().isEqualTo(HttpStatus.FORBIDDEN)
+                .expectBody().isEmpty();
+    }
 
-	@Test
-	public void getUsersMeWhenIsRobThenIsOk() {
-		client
-				.get()
-				.uri("/users/me")
-				.attributes(robsCredentials())
-				.exchange()
-				.expectStatus().isOk();
-	}
+    @Test
+    public void getUsersRobWhenNotAuthenticatedThenIsUnauthorized() {
+        client
+                .get()
+                .uri("/users/rob")
+                .exchange()
+                .expectStatus().isUnauthorized()
+                .expectBody().isEmpty();
+    }
 
-	@Test
-	public void getUsersMeWhenIsJoshThenIsForbidden() {
-		client
-				.get()
-				.uri("/users/me")
-				.attributes(joshsCredentials())
-				.exchange()
-				.expectStatus().isEqualTo(HttpStatus.FORBIDDEN);
-	}
+    @Test
+    public void getUsersMeWhenIsRobThenIsOk() {
+        client
+                .get()
+                .uri("/users/me")
+                .attributes(robsCredentials())
+                .exchange()
+                .expectStatus().isOk();
+    }
 
-	@Test
-	public void getUsersMeWhenNotAuthenticatedThenIsUnauthorized() {
-		client
-				.get()
-				.uri("/users/me")
-				.exchange()
-				.expectStatus().isUnauthorized()
-				.expectBody().isEmpty();
-	}
+    @Test
+    public void getUsersMeWhenIsJoshThenIsForbidden() {
+        client
+                .get()
+                .uri("/users/me")
+                .attributes(joshsCredentials())
+                .exchange()
+                .expectStatus().isEqualTo(HttpStatus.FORBIDDEN);
+    }
 
-	private Consumer<Map<String, Object>> robsCredentials() {
-		return basicAuthenticationCredentials("rwinch", "password");
-	}
+    @Test
+    public void getUsersMeWhenNotAuthenticatedThenIsUnauthorized() {
+        client
+                .get()
+                .uri("/users/me")
+                .exchange()
+                .expectStatus().isUnauthorized()
+                .expectBody().isEmpty();
+    }
 
-	private Consumer<Map<String, Object>> joshsCredentials() {
-		return basicAuthenticationCredentials("jlong", "password");
-	}
+    private Consumer<Map<String, Object>> robsCredentials() {
+        return ExchangeFilterFunctions.Credentials.basicAuthenticationCredentials("rwinch", "password");
+    }
 
-	/**
-	 * This is coming in Spring Framework 5.0.0.RC3
-	 * @param username
-	 * @param password
-	 * @return
-	 */
-	public static Consumer<Map<String, Object>> basicAuthenticationCredentials(String username, String password) {
-		return attributes -> {
-			attributes.put(ExchangeFilterFunctions.USERNAME_ATTRIBUTE, username);
-			attributes.put(ExchangeFilterFunctions.PASSWORD_ATTRIBUTE, password);
-		};
-	}
+    private Consumer<Map<String, Object>> joshsCredentials() {
+        return ExchangeFilterFunctions.Credentials.basicAuthenticationCredentials("jlong", "password");
+    }
 }

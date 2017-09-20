@@ -18,8 +18,11 @@ public class FfsClientApplication {
 
     @Bean
     WebClient webClient() {
-        return WebClient.create("http://localhost:8080/movies")
-                .filter(ExchangeFilterFunctions.basicAuthentication("jlong", "password"));
+        return WebClient
+                .create("http://localhost:8080/movies")
+                .mutate()
+                .filter(ExchangeFilterFunctions.basicAuthentication("jlong", "password"))
+                .build();
     }
 
     @Bean
