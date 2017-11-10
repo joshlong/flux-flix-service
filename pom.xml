@@ -7,7 +7,11 @@
 	<version>0.0.1-SNAPSHOT</version>
 	<packaging>pom</packaging>
 	<modules>
-		<module>ffs-client</module>
-		<module>ffs-service</module>
+        <module>java/ffs-client</module>
+        <module>java/ffs-service</module>
+        <!--
+        <module>kotlin/flux-flix-client</module>
+        <module>kotlin/flux-flix-service</module>
+        -->
 	</modules>
 </project>
